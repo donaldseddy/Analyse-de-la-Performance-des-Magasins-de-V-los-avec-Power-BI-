@@ -1,0 +1,44 @@
+📂 Analyse_Magasins_Velos
+│  
+├── 📂 Données
+│   ├── raw_data/                  # Données brutes non traitées (CSV, Excel, SQL)
+│   │   ├── ventes.csv
+│   │   ├── stocks.csv
+│   │   ├── clients.csv
+│   │   ├── employés.csv
+│   │   ├── magasins.csv
+│   │   └── produits.csv
+│   ├── cleaned_data/              # Données nettoyées et transformées
+│   │   ├── ventes_clean.csv
+│   │   ├── stocks_clean.csv
+│   │   ├── clients_clean.csv
+│   │   └── autres_fichiers...
+│   ├── base_de_donnees/           # Exports SQL (si besoin)
+│   │   ├── magasin_velos.db
+│   │   └── schema.sql
+|
+├── /notebooks                  # Dossier pour les notebooks Jupyter ou scripts d'analyse
+│   ├── data_preparation.ipynb  # Notebook pour la préparation des données
+│   ├── analyse_descriptive.ipynb # Notebook pour l'analyse descriptive avec Power BI
+│   └── prédiction_model.ipynb  # Notebook pour la modélisation prédictive (ex : Prophet)
+│ 
+├── 📂 PowerBI
+│   ├── 📜 Analyse_Magasins_Velos.pbix  # Fichier du rapport Power BI
+│   ├── 📜 DAX_Mesures.txt              # Liste des mesures DAX utilisées
+│   ├── 📜 Visualisations.png           # Captures d’écran des dashboards
+│  
+├── 📂 Scripts
+│   ├── 📜 data_cleaning.py        # Script Python pour nettoyer les données
+│   ├── 📜 export_sql.py           # Script pour exporter vers SQL
+│   ├── 📜 update_data.py          # Script d'automatisation des mises à jour
+│  
+├── 📂 Documentation
+│   ├── 📜 README.md               # Description du projet
+│   ├── 📜 Rapport_Analyse.pdf     # Compte-rendu de l’analyse
+│   ├── 📜 Guide_Utilisation.pdf   # Instructions pour utiliser le rapport Power BI
+│  
+├── 📂 Présentation
+│   ├── 📜 Présentation.pptx       # Présentation des résultats
+│   ├── 📜 Notes_orateur.txt       # Notes explicatives pour la présentation
+│  
+└── 📜 .gitignore                   # Fichier pour exclure certains fichiers du dépôt Git (si utilisé)

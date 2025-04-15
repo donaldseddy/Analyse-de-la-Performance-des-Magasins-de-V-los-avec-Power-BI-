@@ -1,0 +1,431 @@
+Django
+
+1- installer et activer l'environnement virtuel
+	 python -m venv env
+	source env/bin/activate
+
+2- installer Django
+	pip install django
+	django-admin --version
+	
+3- creer un projet 
+	django-admin startproject mon_project .
+	
+3- lancer le serveur Django
+	python manage.py runserver
+	
+4- Configurer les variables d'environnement
+	- pip install python-decouple
+	- Créez un fichier .env à la racine du projet
+		DEBUG=True
+		SECRET_KEY=votre_clé_secrète
+		DATABASE_URL=sqlite:///db.sqlite3
+		ALLOWED_HOSTS=localhost,127.0.0.1
+	- Modifiez settings.py pour utiliser ces variables
+		from decouple import config, Csv
+		from pathlib import Path
+
+		BASE_DIR = Path(__file__).resolve().parent.parent
+
+		SECRET_KEY = config('SECRET_KEY')
+		DEBUG = config('DEBUG', default=False, cast=bool)
+		ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
+
+
+5- structuration du projet et creation de l'application
+	- python manage.py startapp blog
+	- Ajoutez l'application dans settings.py
+		INSTALLED_APPS = [
+			'django.contrib.admin',
+			'django.contrib.auth',
+			'django.contrib.contenttypes',
+			'django.contrib.sessions',
+			'django.contrib.messages',
+			'django.contrib.staticfiles',
+			'blog',
+		]
+		
+6- configuration de la bd 
+		- Pour gérer différentes bases de données selon l'environnement, 
+		- installons dj-database-url: pip install dj-database-url
+		- Modifiez settings.py
+			import dj_database_url
+			from decouple import config
+
+			# ...
+
+			DATABASES = {
+				'default': dj_database_url.config(
+					default=config('DATABASE_URL')
+				)
+			}
+7- Definisser les differents environnements
+	- Pour le développement (.env.dev)		
+		DEBUG=True
+		SECRET_KEY=dev_secret_key
+		DATABASE_URL=sqlite:///db.sqlite3
+		ALLOWED_HOSTS=localhost,127.0.0.1
+
+		
+8 - Création des modèles
+	- Dans blog/models.py
+		from django.db import models
+		from django.contrib.auth.models import User
+
+		class Category(models.Model):
+			name = models.CharField(max_length=100)
+			slug = models.SlugField(unique=True)
+			description = models.TextField(blank=True)
+			
+			def __str__(self):
+				return self.name
+			
+			class Meta:
+				verbose_name_plural = "Categories"
+
+		class Post(models.Model):
+			title = models.CharField(max_length=200)
+			slug = models.SlugField(unique=True)
+			content = models.TextField()
+			created_at = models.DateTimeField(auto_now_add=True)
+			updated_at = models.DateTimeField(auto_now=True)
+			published = models.BooleanField(default=False)
+			author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
+			category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='posts')
+			
+			def __str__(self):
+				return self.title
+
+9- Créez les migrations et appliquez-les 
+	python manage.py makemigrations
+	python manage.py migrate
+
+10-  Création des vues et des URL : 
+	- Dans blog/views.py
+		from django.shortcuts import render, get_object_or_404
+		from .models import Post, Category
+
+		def post_list(request):
+			posts = Post.objects.filter(published=True).order_by('-created_at')
+			return render(request, 'blog/post_list.html', {'posts': posts})
+
+		def post_detail(request, slug):
+			post = get_object_or_404(Post, slug=slug, published=True)
+			return render(request, 'blog/post_detail.html', {'post': post})
+
+		def category_posts(request, slug):
+			category = get_object_or_404(Category, slug=slug)
+			posts = Post.objects.filter(category=category, published=True).order_by('-created_at')
+			return render(request, 'blog/category_posts.html', {'category': category, 'posts': posts})
+			
+		- Créez blog/urls.py
+			from django.urls import path
+			from . import views
+
+			app_name = 'blog'
+
+			urlpatterns = [
+				path('', views.post_list, name='post_list'),
+				path('post/<slug:slug>/', views.post_detail, name='post_detail'),
+				path('category/<slug:slug>/', views.category_posts, name='category_posts'),
+			]
+		- Ajoutez ces URLs au fichier principal monprojet/urls.py
+			from django.contrib import admin
+			from django.urls import path, include
+
+			urlpatterns = [
+				path('admin/', admin.site.urls),
+				path('blog/', include('blog.urls', namespace='blog')),
+			]
+		
+		- Administration Dans blog/admin.py
+			from django.contrib import admin
+			from .models import Category, Post
+
+			@admin.register(Category)
+			class CategoryAdmin(admin.ModelAdmin):
+				list_display = ('name', 'slug')
+				prepopulated_fields = {'slug': ('name',)}
+
+			@admin.register(Post)
+			class PostAdmin(admin.ModelAdmin):
+				list_display = ('title', 'slug', 'author', 'published', 'created_at')
+				list_filter = ('published', 'created_at', 'author')
+				search_fields = ('title', 'content')
+				prepopulated_fields = {'slug': ('title',)}
+				raw_id_fields = ('author',)
+				date_hierarchy = 'created_at'
+
+11- Créez les dossiers nécessaires pour les templates :
+	- mkdir -p blog/templates/blog
+	- Créez un fichier de base blog/templates/blog/base.html
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<title>{% block title %}Mon Blog{% endblock %}</title>
+		</head>
+		<body>
+			<header>
+				<h1>Mon Blog</h1>
+				<nav>
+					<a href="{% url 'blog:post_list' %}">Accueil</a>
+				</nav>
+			</header>
+			<main>
+				{% block content %}
+				{% endblock %}
+			</main>
+			<footer>
+				<p>&copy; {% now "Y" %} Mon Blog</p>
+			</footer>
+		</body>
+		</html>
+
+12- Configuration des fichiers statiques et media Dans settings.py
+	# Fichiers statiques (CSS, JavaScript, Images)
+	STATIC_URL = '/static/'
+	STATIC_ROOT = BASE_DIR / 'staticfiles'
+	STATICFILES_DIRS = [BASE_DIR / 'static']
+
+	# Fichiers media (uploads)
+	MEDIA_URL = '/media/'
+	MEDIA_ROOT = BASE_DIR / 'media'
+
+
+13- Mettez à jour monprojet/urls.py pour servir les fichiers media en développement 
+	from django.contrib import admin
+	from django.urls import path, include
+	from django.conf import settings
+	from django.conf.urls.static import static
+
+	urlpatterns = [
+		path('admin/', admin.site.urls),
+		path('blog/', include('blog.urls', namespace='blog')),
+	]
+
+	if settings.DEBUG:
+		urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+		
+14 -  Configuration pour le déploiement en production
+	- pip install gunicorn whitenoise psycopg2-binary
+	- Ajoutez whitenoise dans settings.py
+		MIDDLEWARE = [
+			'django.middleware.security.SecurityMiddleware',
+			'whitenoise.middleware.WhiteNoiseMiddleware',  # Ajoutez après SecurityMiddleware
+			# ... autres middlewares
+		]
+
+		# Configuration pour les fichiers statiques en production
+		STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'	
+	- Créez un fichier requirements.txt
+		pip freeze > requirements.txt
+		
+15- Déploiement en production
+	- Créez un fichier Procfile pour Gunicorn
+	- web: gunicorn monprojet.wsgi --log-file 
+
+16 - Assurez-vous que votre fichier .gitignore contient
+		# Environnement virtuel
+		venv/
+		env/
+		ENV/
+
+		# Fichiers Python
+		__pycache__/
+		*.py[cod]
+		*$py.class
+		*.so
+
+		# Fichiers de base de données
+		db.sqlite3
+
+		# Fichiers d'environnement
+		.env
+		.env.*
+
+		# Fichiers statiques et media collectés
+		/staticfiles/
+		/media/
+
+		# Fichiers IDE
+		.idea/
+		.vscode/
+		*.swp
+17- Sécurité supplémentaire pour la production
+	# Sécurité
+	if not DEBUG:
+		SECURE_HSTS_SECONDS = 31536000  # 1 an
+		SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+		SECURE_HSTS_PRELOAD = True
+		SECURE_SSL_REDIRECT = True
+		SESSION_COOKIE_SECURE = True
+		CSRF_COOKIE_SECURE = True
+		SECURE_BROWSER_XSS_FILTER = True
+		SECURE_CONTENT_TYPE_NOSNIFF = True
+		X_FRAME_OPTIONS = 'DENY'
+
+	55i7tcol	- Modifiez settings.py pour utiliser ces variables
+	
+	
+Manipulation des types GEOGRAPHY dans Django avec PostgreSQL
+18- Installation des prérequis
+	# Sur Ubuntu/Debian
+	sudo apt-get install postgresql postgresql-contrib postgis postgresql-<version>-postgis-<version>
+
+*****SI postgresql est deja install juste faire ceci********************
+sudo apt-get install postgis postgresql-17-postgis-3
+
+**********************ensuite*******************
+- Activez les extensions PostGIS et PostGIS_Topology sur postgres (pgadmin)
+	CREATE EXTENSION postgis;
+	CREATE EXTENSION postgis_topology;
+
+- DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'votre_base_de_donnees',
+        'USER': 'votre_utilisateur',
+        'PASSWORD': 'votre_mot_de_passe',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
+
+
+
+19 -Dépendances Python
+	pip install psycopg2-binary django
+	# Sur Ubuntu/Debian
+	sudo apt-get install binutils libproj-dev gdal-bin libgdal-dev
+
+	# Sur macOS avec Homebrew
+	brew install gda
+l
+20- Configuration du projet Django Activation de GeoDjang 
+	- Ajoutez django.contrib.gis à vos applications installées dans settings.py
+		INSTALLED_APPS = [
+			# ...
+			'django.contrib.gis',
+			# Vos applications
+		]
+		
+21- Configuration de la base de données
+	DATABASES = {
+		'default': {
+			'ENGINE': 'django.contrib.gis.db.backends.postgis',
+			'NAME': 'votre_base_de_donnees',
+			'USER': 'votre_utilisateur',
+			'PASSWORD': 'votre_mot_de_passe',
+			'HOST': 'localhost',
+			'PORT': '5432',
+		}
+	}
+			
+Le paramètre geography=True est crucial ici - c'est ce qui indique à Django d'utiliser le type GEOGRAPHY de PostgreSQL plutôt que GEOMETRY.
+Notes:
+
+srid=4326 correspond au système WGS84 (coordonnées latitude/longitude standard)
+Le type GEOGRAPHY est stocké en coordonnées sphériques (longitude/latitude)
+
+
+	
+22- Création des modèles avec des champs géographiques
+	from django.contrib.gis.db import models
+
+	class Location(models.Model):
+		name = models.CharField(max_length=100)
+		
+		# Point géographique (longitude, latitude)
+		point = models.PointField(geography=True, srid=4326)
+		
+		# Ligne
+		route = models.LineStringField(geography=True, srid=4326, null=True, blank=True)
+		
+		# Polygone
+		area = models.PolygonField(geography=True, srid=4326, null=True, blank=True)
+		
+		# Collection de polygones
+		regions = models.MultiPolygonField(geography=True, srid=4326, null=True, blank=True)
+		
+		def __str__(self):
+			return self.name
+			
+Le paramètre geography=True est crucial ici - c'est ce qui indique à Django d'utiliser le type GEOGRAPHY de PostgreSQL plutôt que GEOMETRY.
+Notes:
+
+srid=4326 correspond au système WGS84 (coordonnées latitude/longitude standard)
+Le type GEOGRAPHY est stocké en coordonnées sphériques (longitude/latitude)
+
+23- Création et application des migrations
+	python manage.py makemigrations
+	python manage.py migrate
+	
+24 -  Manipuler des données géographiques
+	- Création d'objets
+		from django.contrib.gis.geos import Point, LineString, Polygon, MultiPolygon
+
+		# Création d'un point (longitude, latitude)
+		location = Location(
+			name="Tour Eiffel",
+			point=Point(2.2945, 48.8584, srid=4326)  # lon, lat
+		)
+		location.save()
+
+		# Création d'une ligne
+		coordinates = [
+			(2.2945, 48.8584),  # Point A (lon, lat)
+			(2.3698, 48.8529)   # Point B (lon, lat)
+		]
+		location.route = LineString(coordinates, srid=4326)
+		location.save()
+
+		# Création d'un polygone (attention: le premier et dernier point doivent être identiques)
+		polygon_coords = [
+			(2.29, 48.85),
+			(2.30, 48.86),
+			(2.31, 48.85),
+			(2.29, 48.85)  # Fermeture du polygone
+		]
+		location.area = Polygon([polygon_coords], srid=4326)
+		location.save()
+
+25 - Fonctions spatiales spécifiques
+	from django.contrib.gis.geos import Point
+	from django.contrib.gis.measure import D
+
+	# Point de référence
+	ref_point = Point(2.3522, 48.8566, srid=4326)  # Paris
+
+	# Requête de distance (tous les points dans un rayon de 5km)
+	# Avec GEOGRAPHY, la distance est calculée en mètres
+	nearby_locations = Location.objects.filter(point__distance_lte=(ref_point, D(km=5)))
+
+	# Requête pour trouver les 5 points les plus proches
+	closest_locations = Location.objects.distance(ref_point).order_by('distance')[:5]
+
+	# Requête d'intersection avec un polygone
+	my_polygon = Polygon(...)
+	locations_in_area = Location.objects.filter(point__intersects=my_polygo
+	25 - 6. Fonctions spatiales spécifiques
+	
+26 - Administration Django
+	from django.contrib.gis.admin import OSMGeoAdmin
+	from django.contrib import admin
+	from .models import Location
+
+	@admin.register(Location)
+	class LocationAdmin(OSMGeoAdmin):
+		list_display = ('name',)
+		
+27 - Sérialisation pour les API
+	pip install djangorestframework djangorestframework-gis
+	
+	from rest_framework_gis.serializers import GeoFeatureModelSerializer
+	from .models import Location
+
+	class LocationSerializer(GeoFeatureModelSerializer):
+		class Meta:
+			model = Location
+			geo_field = 'point'
+			fields = ('id', 'name', 'point', 'route', 'area')
