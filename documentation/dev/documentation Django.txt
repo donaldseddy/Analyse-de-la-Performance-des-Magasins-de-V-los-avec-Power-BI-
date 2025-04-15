@@ -11,6 +11,9 @@ Django
 3- creer un projet 
 	django-admin startproject mon_project .
 	
+
+4- vu que on developpe sur pour trois environnements le mieux c'est de copier 
+le contenu de settings.py dans un fichier base.py qui a la configuration de base du projet
 3- lancer le serveur Django
 	python manage.py runserver
 	

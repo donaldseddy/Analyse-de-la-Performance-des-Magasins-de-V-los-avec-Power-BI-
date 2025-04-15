@@ -9,8 +9,23 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+from decouple import Config, RepositoryEnv, config as conf
 from pathlib import Path
+
+
+# Load environment variables from .env file
+try:
+    if conf('DJANGO_SETTINGS_MODULE') == 'magazin_vente_velo.settings.local':
+        config = Config(RepositoryEnv('local.env'))
+    elif conf('DJANGO_SETTINGS_MODULE') == 'magazin_vente_velo.settings.staging':
+        config = Config(RepositoryEnv('staging.env'))
+    elif conf('DJANGO_SETTINGS_MODULE') == 'magazin_vente_velo.settings.production':
+        config = Config(RepositoryEnv('production.env'))
+    else:
+        config = conf
+except (FileNotFoundError, Exception):
+    config = conf
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -69,15 +84,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "magazin_vente_velo.wsgi.application"
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
 
 
 # Password validation
