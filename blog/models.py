@@ -18,7 +18,7 @@ class products(models.Model):
     geolocalization = PointField(srid=4326, geography=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    vector_search = SearchVectorField(verbose_name=["name", "description"])
+    vector_search = SearchVectorField(verbose_name=["name", "description", "ref"])
 
 
     def save(self, *args, **kwargs):
@@ -50,3 +50,25 @@ class brand(models.Model):
     def __str__(self):
         return self.name
 
+
+    "create a model for customer with the following fields: customer_id, first_name,last_name, email, phone, address, city, created_at, updated_at, geolocalization,birth_date, vector_search, and a method to calculate the distance between two points using the haversine formula"
+class customer(models.Model):
+    customer_id = models.AutoField(primary_key=True)
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=15, unique=True)
+    address = models.CharField(max_length=255)
+    city = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    geolocalization = PointField(srid=4326, geography=True)
+    birth_date = models.DateField()
+    vector_search = SearchVectorField(verbose_name=["first_name", "last_name", "email", "phone"])
+
+    def save(self, *args, **kwargs):
+        self.geolocalization = Point(self.longitude, self.latitude, srid=4326)
+        super().save(*args, **kwargs)
+
+    def distance_to(self, other):
+        return self.geolocalization.distance(other.geolocalization)
