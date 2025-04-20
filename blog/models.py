@@ -82,10 +82,10 @@ class store(models.Model):
     store_name = models.CharField(max_length=255)
     store_phone = models.CharField(max_length=15, unique=True)
     store_email = models.EmailField(unique=True)
-    store_zip_code_street = models.IntegerField(max_length=10)
+    store_zip_code_street = models.IntegerField()
     store_city = models.CharField(max_length=255)
     store_state = models.CharField(max_length=255)
-    store_zip = models.IntegerField(max_length=10)
+    store_zip = models.IntegerField()
     store_country = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -132,7 +132,7 @@ class stock(models.Model):
 
 
 
-"create a model for blog order with the following fields: order_id, customer_id, order_date, required_date, shipped_date, store_id, staff_id, total_amount, status, created_at, updated_at, and a method to calculate the total amount of the order"
+"create a model for blog order with the following fields: order_id, customer_id, order_date, required_date, shipped_date, store_id, staff_id, status, created_at, updated_at, and a method to calculate the total amount of the order"
 class order(models.Model):
     order_id = models.AutoField(primary_key=True)
     customer_id = models.ForeignKey(customer, on_delete=models.CASCADE)
@@ -141,7 +141,6 @@ class order(models.Model):
     shipped_date = models.DateTimeField()
     store_id = models.ForeignKey(store, on_delete=models.CASCADE)
     staff_id = models.ForeignKey(staff, on_delete=models.CASCADE)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
