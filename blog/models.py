@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.gis.db.models import PointField
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.search import SearchVectorField
+from django.contrib.auth.models import AbstractUser
 
 
 # Create your models here.
@@ -161,3 +162,15 @@ class order_items(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = self.quantity * (self.list_price - self.discount)
         super().save(*args, **kwargs)
+
+
+
+# models/user.py
+class CustomUser(AbstractUser):
+    USER_TYPE_CHOICES = (
+        ('client', 'Client'),
+        ('admin', 'Admin'),
+        ('vendeur', 'Vendeur'),
+        ('livreur', 'Livreur'),
+    )
+    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
