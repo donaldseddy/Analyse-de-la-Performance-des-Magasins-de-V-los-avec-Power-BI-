@@ -166,7 +166,7 @@ class order_items(models.Model):
 
 
 # models/user.py
-class CustomUser(AbstractUser):
+"""class CustomUser(AbstractUser):
     USER_TYPE_CHOICES = (
         ('client', 'Client'),
         ('admin', 'Admin'),
@@ -174,3 +174,4 @@ class CustomUser(AbstractUser):
         ('livreur', 'Livreur'),
     )
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
+"""
