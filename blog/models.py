@@ -3,157 +3,272 @@ from django.contrib.gis.db.models import PointField
 from django.contrib.gis.geos import Point
 from django.contrib.postgres.search import SearchVectorField
 from django.contrib.auth.models import AbstractUser
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
+
+
+
+
 
 
 # Create your models here.
+class Localisation(models.Model):
+    id = models.AutoField(primary_key=True)
+    point = PointField(srid=4326, geography=True)
+    street = models.CharField(max_length=255)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=20)
+    country = models.CharField(max_length=255)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+
+    def full_address(self):
+        return f"{self.street}, {self.city}, {self.state}, {self.zip_code}"
+
+    def save(self, *args, **kwargs):
+        # Géocodage de l'adresse
+        geolocator = Nominatim(user_agent="my_django_app")
+        try:
+            location = geolocator.geocode(self.full_address())
+            if location:
+                self.latitude = location.latitude
+                self.longitude = location.longitude
+        except GeocoderTimedOut:
+            pass  # ou gérer autrement
+
+        super().save(*args, **kwargs)
+    
+
+    def save_point(self, *args, **kwargs):
+        self.point = Point(self.longitude, self.latitude, srid=4326)
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return f"{self.street}, {self.city}, {self.state}, {self.zip_code}"
+    
+    # definir la longitude et latitude avec les street, city, state, zip_code
+    def get_latitude_longitude(self):
+        return {
+            'latitude': self.latitude,
+            'longitude': self.longitude
+        }
 
 
-"""create a model for blog category with the following fields: category_id,name, description"""
-class category(models.Model):
-    category_id = models.AutoField(primary_key=True)
+
+class Identify(models.Model):
+    HOMME = 'H'
+    FEMME = 'F'
+    AUTRE = 'A'
+    # Define the choices
+    GENRE_CHOICES = [
+        (HOMME, 'Homme'),
+        (FEMME, 'Femme'),
+        (AUTRE, 'Autre'),
+    ]
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255, null=False)
+    first_name = models.CharField(max_length=255, null=True)
+    genre = models.CharField(
+        max_length=1,
+        choices=GENRE_CHOICES,
+        default=HOMME
+    )
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=15, unique=True)
+    birth_date = models.DateField()
+    location = models.ForeignKey(
+        Localisation, 
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        if self.first_name:
+            return f"{self.first_name} {self.name} ({self.email})"
+        return f"{self.name} ({self.email})"
+    
+    def get_full_name(self):
+        if self.first_name:
+            return f"{self.first_name} {self.name}"
+        return self.name    
+
+class Category(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     description = models.TextField()
 
     def __str__(self):
         return self.name
     
-
-"""create a model for blog brand with the following fields: ref,name"""
-class brand(models.Model):
-    brand_id =  models.IntegerField(unique=True)
+class Brand(models.Model):
+    id =  models.IntegerField(unique=True)
     name = models.CharField(max_length=255)
 
     def __str__(self):
         return self.name
 
 
-    "create a model for customer with the following fields: customer_id, first_name,last_name, email, phone, address, city, created_at, updated_at, geolocalization,birth_date, vector_search, and a method to calculate the distance between two points using the haversine formula"
-class customer(models.Model):
-    customer_id = models.AutoField(primary_key=True)
-    first_name = models.CharField(max_length=2)
-    last_name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=15, unique=True)
-    street = models.CharField(max_length=255)
-    city = models.CharField(max_length=255)
-    state = models.CharField(max_length=255)
+
+class Customer(models.Model):
+    id = models.AutoField(primary_key=True)
+    identify = models.ForeignKey(
+        Identify, 
+        on_delete=models.CASCADE
+    )
     zip_code = models.CharField(max_length=10)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    geolocalization = PointField(srid=4326, geography=True)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    birth_date = models.DateField()
     vector_search = SearchVectorField(verbose_name=["first_name", "last_name", "email", "phone"])
 
-    def save(self, *args, **kwargs):
-        self.geolocalization = Point(self.longitude, self.latitude, srid=4326)
-        super().save(*args, **kwargs)
 
-    def distance_to(self, other):
-        return self.geolocalization.distance(other.geolocalization)
-    
-    
-
-   
-    
-"create a model for blog produit with the following fields: name, description, price, category_id, brand_id, model_year, list_price, product_code, created_at, updated_at"""
-class products(models.Model):
-    product_id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=255)
+class Products(models.Model):
+    id = models.AutoField(primary_key=True)
+    identify = models.ForeignKey(
+        Identify,
+        on_delete=models.CASCADE
+    )
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    category_id = models.ForeignKey(category, on_delete=models.CASCADE)
-    brand_id = models.ForeignKey(brand, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE)
     model_year = models.IntegerField()
-    list_price = models.DecimalField(max_digits=10, decimal_places=2)
-    product_code = models.CharField(max_length=255, unique=True)
+    reference = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+    garanty_date = models.DateField()
+    vector_search = SearchVectorField(verbose_name=["name", "category", "brand"])
 
     def __str__(self):
         return self.name
 
 
 
-"""create a model for blog store with the following fields: store_id, store_name,store_phone, store_amail,store_zip_code_street, store_city, store_state, store_zip, store_country, store_phone, store_email, created_at, updated_at, geolocalization, vector_search"""
-class store(models.Model):
-    store_id = models.AutoField(primary_key=True)
-    store_name = models.CharField(max_length=255)
-    store_phone = models.CharField(max_length=15, unique=True)
-    store_email = models.EmailField(unique=True)
-    store_zip_code_street = models.IntegerField()
-    store_city = models.CharField(max_length=255)
-    store_state = models.CharField(max_length=255)
-    store_zip = models.IntegerField()
-    store_country = models.CharField(max_length=255)
+class Store(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=15, unique=True)
+    email = models.EmailField(unique=True)
+    location = models.ForeignKey(
+        Localisation, 
+        on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    geolocalization = PointField(srid=4326, geography=True)
-    vector_search = SearchVectorField(verbose_name=["store_name", "store_phone", "store_email"])
+    vector_search = SearchVectorField(verbose_name=["name", "phone", "email"])
 
     def save(self, *args, **kwargs):
         self.geolocalization = Point()
         super().save(*args, **kwargs)
 
 
-"""create a model for blog staff with the following fields: staff_id, first_name, last_name, email, phone, store_id, active, manager_id"""
-class staff(models.Model):  
-    staff_id = models.AutoField(primary_key=True)
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=15, unique=True)
-    store_id = models.ForeignKey(store, on_delete=models.CASCADE)
+class Role(models.TextChoices):
+    DIRECTEUR = 'directeur', 'Directeur'
+    SOUS_DIRECTEUR = 'sous_directeur', 'Sous-Directeur'
+    CHEF_EQUIPE = 'chef_equipe', "Chef d'équipe"
+    EMPLOYE = 'employe', 'Employé'
+
+
+class Staff(models.Model):  
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    store = models.ForeignKey(
+        Store, 
+        on_delete=models.CASCADE
+    )
     active = models.BooleanField(default=True)
-    manager_id = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL)
+    manager = models.ForeignKey(
+        'Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff_dirige',
+        limit_choices_to={'role__in': [Role.DIRECTEUR, Role.SOUS_DIRECTEUR, Role.CHEF_EQUIPE]}
+    ) 
+
+class Employee(models.Model):
+    id = models.AutoField(primary_key=True)
+    identify = models.ForeignKey(
+        Identify, 
+        on_delete=models.CASCADE
+    )
+    Role = models.CharField(
+        max_length=255,
+        choices=Role.choices
+    )
+
+    store = models.ForeignKey(
+        Store, 
+        on_delete=models.CASCADE
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    staff = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employees'
+    )
+
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
-    
 
 
-"""create a model for blog stock with the following fields: (product_id, store_id,)cle compose quantity, created_at, updated_at"""	
-class stock(models.Model):
-    product_id = models.ForeignKey(products, on_delete=models.CASCADE)
-    store_id = models.ForeignKey(store, on_delete=models.CASCADE)
+class Stock(models.Model):
+    product = models.ForeignKey(
+        Products, 
+        on_delete=models.CASCADE
+    )
+    store = models.ForeignKey(
+        Store, 
+        on_delete=models.CASCADE
+    )
     quantity = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['product_id', 'store_id'], name='unique_product_store')
+            models.UniqueConstraint(fields=['product', 'store'], name='unique_product_store')
         ]
 
     def __str__(self):
-        return f"{self.product_id} - {self.store_id}"
+        return f"{self.product} - {self.store}"
     
 
 
 
-"create a model for blog order with the following fields: order_id, customer_id, order_date, required_date, shipped_date, store_id, staff_id, status, created_at, updated_at, and a method to calculate the total amount of the order"
-class order(models.Model):
-    order_id = models.AutoField(primary_key=True)
-    customer_id = models.ForeignKey(customer, on_delete=models.CASCADE)
-    order_date = models.DateTimeField(auto_now_add=True)
+
+class Order(models.Model):
+    id = models.AutoField(primary_key=True)
+    customer= models.ForeignKey(
+        Customer, 
+        on_delete=models.CASCADE
+    )
+    date = models.DateTimeField(auto_now_add=True)
     required_date = models.DateTimeField()
     shipped_date = models.DateTimeField()
-    store_id = models.ForeignKey(store, on_delete=models.CASCADE)
-    staff_id = models.ForeignKey(staff, on_delete=models.CASCADE)
+    store = models.ForeignKey(
+        Store, 
+        on_delete=models.CASCADE
+    )
+    staff = models.ForeignKey(
+        Staff, 
+        on_delete=models.CASCADE
+    )
     status = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
-"""create a model for blog order_items with the following fields: order_id, item_id, product_id, quantity, list_price, discount, total_price, created_at, updated_at, and a method to calculate the total price of the order items"""
-class order_items(models.Model):
-    order_id = models.ForeignKey(order, on_delete=models.CASCADE)
-    item_id = models.AutoField(primary_key=True)
-    product_id = models.ForeignKey(products, on_delete=models.CASCADE)
+
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    id = models.AutoField(primary_key=True)
+    product = models.ForeignKey(Products, on_delete=models.CASCADE)
     quantity = models.IntegerField()
-    list_price = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -175,3 +290,4 @@ class order_items(models.Model):
     )
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
 """
+
